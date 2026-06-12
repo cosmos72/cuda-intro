@@ -25,13 +25,13 @@ static int run(void) {
     hx[i] = 1.0f;
     hy[i] = 2.0f;
   }
-  CHECK(cudaMemcpyAsync(x, hx, N * sizeof(float), cudaMemcpyHostToDevice));
-  CHECK(cudaMemcpyAsync(y, hy, N * sizeof(float), cudaMemcpyHostToDevice));
+  CHECK(cudaMemcpyAsync(x, hx, N * sizeof(float), cudaMemcpyHostToDevice, cudaStreamPerThread));
+  CHECK(cudaMemcpyAsync(y, hy, N * sizeof(float), cudaMemcpyHostToDevice, cudaStreamPerThread));
 
   // Run kernel on 1M elements on the GPU
-  add<<<1, 1>>>(N, x, y);
+  add<<<1, 1, 0, cudaStreamPerThread>>>(N, x, y);
 
-  CHECK(cudaMemcpyAsync(hy, y, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CHECK(cudaMemcpyAsync(hy, y, N * sizeof(float), cudaMemcpyDeviceToHost, cudaStreamPerThread));
 
   // Wait for GPU to finish before accessing on host
   CHECK(cudaStreamSynchronize(cudaStreamPerThread));
@@ -56,7 +56,7 @@ int main(void) {
     CHECK(cudaSetDevice(0));
     run();
   } catch (const std::exception& ex) {
-    std::cerr << ex.what();
+    std::cerr << ex.what() << '\n';
     return 1;
   }
   return 0;

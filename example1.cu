@@ -34,9 +34,8 @@ static int run(void) {
   CHECK(cudaStreamSynchronize(cudaStreamPerThread));
 
   // Check for errors (all values should be 3.0f)
-
   for (int i = 0; i < N; i++) {
-    maxError = fmax(maxError, fabs(y[i] - 3.0f));
+    maxError = fmaxf(maxError, fabs(y[i] - 3.0f));
   }
   std::cout << "Max error: " << maxError << std::endl;
 
@@ -51,7 +50,7 @@ int main(void) {
     CHECK(cudaSetDevice(0));
     run();
   } catch (const std::exception& ex) {
-    std::cerr << ex.what();
+    std::cerr << ex.what() << '\n';
     return 1;
   }
   return 0;

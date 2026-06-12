@@ -12,7 +12,7 @@ static float* hostAllocFloat(size_t size) {
   if (addr == NULL) {
     throw std::runtime_error("out of memory");
   }
-  return addr;
+  return (float*)addr;
 }
 
 static void hostFree(void* addr) {

@@ -29,16 +29,16 @@ static int run(void) {
     hx[i] = 1.0f;
     hy[i] = 2.0f;
   }
-  CHECK(cudaMemcpyAsync(x, hx, N * sizeof(float), cudaMemcpyHostToDevice));
-  CHECK(cudaMemcpyAsync(y, hy, N * sizeof(float), cudaMemcpyHostToDevice));
+  CHECK(cudaMemcpyAsync(x, hx, N * sizeof(float), cudaMemcpyHostToDevice, cudaStreamPerThread));
+  CHECK(cudaMemcpyAsync(y, hy, N * sizeof(float), cudaMemcpyHostToDevice, cudaStreamPerThread));
 
   unsigned blocksize = 512;  // number of threads per block
   dim3 threads(blocksize, 1, 1);
   dim3 blocks((N + blocksize - 1) / blocksize, 1, 1);
 
-  add<<<blocks, threads>>>(N, x, y);
+  add<<<blocks, threads, 0, cudaStreamPerThread>>>(N, x, y);
 
-  CHECK(cudaMemcpyAsync(hy, y, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CHECK(cudaMemcpyAsync(hy, y, N * sizeof(float), cudaMemcpyDeviceToHost, cudaStreamPerThread));
 
   // Wait for GPU to finish before accessing on host
   CHECK(cudaStreamSynchronize(cudaStreamPerThread));
@@ -63,7 +63,7 @@ int main(void) {
     CHECK(cudaSetDevice(0));
     run();
   } catch (const std::exception& ex) {
-    std::cerr << ex.what();
+    std::cerr << ex.what() << '\n';
     return 1;
   }
   return 0;
