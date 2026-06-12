@@ -11,5 +11,4 @@ example3: example3.cu
 	nvcc -o $@ -g $< -arch sm_61 --default-stream per-thread
 
 clean:
-	rm -f example1 example2
-
+	rm -f example1 example2 example3
