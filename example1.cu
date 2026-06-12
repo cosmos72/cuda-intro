@@ -1,29 +1,9 @@
+
 #include <math.h>
 
 #include <iostream>
 
-// Kernel function to add the elements of two arrays
-__global__ void add(size_t n, float* x, float* y) {
-  for (size_t i = 0; i < n; i++) {
-    y[i] += x[i];
-  }
-}
-
-static bool failed(const char file[], int line, cudaError_t err) {
-  if (err != cudaSuccess) {
-    std::cerr << "CUDA error " << err << " at " << file << ':' << line << ' '
-              << cudaGetErrorString(err) << '\n';
-    return true;
-  }
-  return false;
-}
-
-#define CHECK(expr)                              \
-  do {                                           \
-    if (failed(__FILE__, __LINE__, expr) != 0) { \
-      goto out;                                  \
-    }                                            \
-  } while (0)
+#include "check.h"
 
 // Kernel function to add the elements of two arrays
 __global__ void add(int n, float* x, float* y) {
@@ -61,15 +41,18 @@ static int run(void) {
   std::cout << "Max error: " << maxError << std::endl;
 
   // Free memory
-out:
   cudaFree(x);
   cudaFree(y);
   return 0;
 }
 
 int main(void) {
-  CHECK(cudaSetDevice(0));
-  run();
-out:
+  try {
+    CHECK(cudaSetDevice(0));
+    run();
+  } catch (const std::exception& ex) {
+    std::cerr << ex.what();
+    return 1;
+  }
   return 0;
 }

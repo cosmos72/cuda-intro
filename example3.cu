@@ -7,8 +7,12 @@
 
 // Kernel function to add the elements of two arrays
 __global__ void add(size_t n, float* x, float* y) {
-  for (size_t i = 0; i < n; i++) {
-    y[i] += x[i];
+  size_t index = (size_t)blockIdx.x * blockDim.x + threadIdx.x;
+  size_t stride = (size_t)blockDim.x * gridDim.x;
+  for (size_t i = index; i < n; i += stride) {
+    if (i < n) {
+      y[i] = x[i] + y[i];
+    }
   }
 }
 
@@ -28,8 +32,11 @@ static int run(void) {
   CHECK(cudaMemcpyAsync(x, hx, N * sizeof(float), cudaMemcpyHostToDevice));
   CHECK(cudaMemcpyAsync(y, hy, N * sizeof(float), cudaMemcpyHostToDevice));
 
-  // Run kernel on 1M elements on the GPU
-  add<<<1, 1>>>(N, x, y);
+  unsigned blocksize = 512;  // number of threads per block
+  dim3 threads(blocksize, 1, 1);
+  dim3 blocks((N + blocksize - 1) / blocksize, 1, 1);
+
+  add<<<blocks, threads>>>(N, x, y);
 
   CHECK(cudaMemcpyAsync(hy, y, N * sizeof(float), cudaMemcpyDeviceToHost));
 
