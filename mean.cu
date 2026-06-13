@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include <iomanip>
 #include <iostream>
 
 #include "alloc.h"
@@ -114,7 +115,8 @@ static int run(void) {
   double mean = cuda_sum(n, x, block_n, hbuf, buf) / double(n);
   double hmean = host_sum(n, hx) / double(n);
 
-  std::cout << "cuda mean = " << mean << ", host mean = " << hmean
+  std::cout << std::setprecision(16) /**/
+            << "cuda mean = " << mean << ", host mean = " << hmean
             << ", difference: " << fabsf(mean - hmean) << '\n';
 
   // Free memory

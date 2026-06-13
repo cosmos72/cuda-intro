@@ -5,7 +5,12 @@
 
 #include "check.h"
 
-// Kernel function to add the elements of two arrays
+// Kernel function to add the elements of two arrays.
+//
+// double arithmetic is SLOW, especially on consumer GPUs.
+// prefer integers, float or even bfloat16.
+//
+// NOTE: bfloat16 requires CUDA_ARCH >= sm_80
 __global__ void kernel_add(int n, float* x, float* y) {
   for (int i = 0; i < n; i++) {
     y[i] = x[i] + y[i];
