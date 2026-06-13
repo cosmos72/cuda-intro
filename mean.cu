@@ -19,7 +19,7 @@ static double host_sum(unsigned n, const float* hin) {
 // Kernel function to compute the sum of all elements in an array
 template <unsigned blocksize>
 __global__ void kernel_sum(const float* in, float* buf, unsigned n) {
-  extern __shared__ float sdata[];
+  extern __shared__ float sdata[]; /* CANNOT specify length */
 
   unsigned tid = threadIdx.x;
   unsigned i = blockIdx.x * blocksize + threadIdx.x;
