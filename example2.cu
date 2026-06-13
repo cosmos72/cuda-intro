@@ -25,13 +25,16 @@ static int run(void) {
     hx[i] = 1.0f;
     hy[i] = 2.0f;
   }
-  CHECK(cudaMemcpyAsync(x, hx, N * sizeof(float), cudaMemcpyHostToDevice, cudaStreamPerThread));
-  CHECK(cudaMemcpyAsync(y, hy, N * sizeof(float), cudaMemcpyHostToDevice, cudaStreamPerThread));
+  CHECK(cudaMemcpyAsync(x, hx, N * sizeof(float), cudaMemcpyHostToDevice,
+                        cudaStreamPerThread));
+  CHECK(cudaMemcpyAsync(y, hy, N * sizeof(float), cudaMemcpyHostToDevice,
+                        cudaStreamPerThread));
 
   // Run kernel on 1M elements on the GPU
   add<<<1, 1, 0, cudaStreamPerThread>>>(N, x, y);
 
-  CHECK(cudaMemcpyAsync(hy, y, N * sizeof(float), cudaMemcpyDeviceToHost, cudaStreamPerThread));
+  CHECK(cudaMemcpyAsync(hy, y, N * sizeof(float), cudaMemcpyDeviceToHost,
+                        cudaStreamPerThread));
 
   // Wait for GPU to finish before accessing on host
   CHECK(cudaStreamSynchronize(cudaStreamPerThread));
@@ -40,7 +43,7 @@ static int run(void) {
   for (size_t i = 0; i < N; i++) {
     maxError = fmaxf(maxError, fabs(hy[i] - 3.0f));
   }
-  std::cout << "Max error: " << maxError << '\n';
+  std::cout << "Max difference: " << maxError << '\n';
 
   // Free memory
   gpuFree(x);

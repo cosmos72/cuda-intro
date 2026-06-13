@@ -37,7 +37,7 @@ static int run(void) {
   for (int i = 0; i < N; i++) {
     maxError = fmaxf(maxError, fabs(y[i] - 3.0f));
   }
-  std::cout << "Max error: " << maxError << std::endl;
+  std::cout << "Max difference: " << maxError << std::endl;
 
   // Free memory
   cudaFree(x);
