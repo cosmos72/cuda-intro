@@ -1,4 +1,4 @@
-CUDA_ARCH=sm_61
+CUDA_ARCH=sm_86
 
 all: example1 example2 example3 mean
 

@@ -1,4 +1,5 @@
 #include <math.h>
+#include <time.h>
 
 #include <iostream>
 
@@ -6,7 +7,7 @@
 #include "check.h"
 
 // Kernel function to add the elements of two arrays
-__global__ void add(size_t n, float* x, float* y) {
+__global__ void kernel_add(size_t n, float* x, float* y) {
   for (size_t i = 0; i < n; i++) {
     y[i] += x[i];
   }
@@ -16,14 +17,15 @@ static int run(void) {
   size_t N = 1 << 20;
   float* hx = hostAllocFloat(N);
   float* hy = hostAllocFloat(N);
+  float* hsum = hostAllocFloat(N);
   float* x = gpuAllocFloat(N);
   float* y = gpuAllocFloat(N);
-  float maxError = 0.0f;
+  float maxerror = 0.0f;
 
   // initialize x and y arrays on the host
   for (size_t i = 0; i < N; i++) {
-    hx[i] = 1.0f;
-    hy[i] = 2.0f;
+    hx[i] = (float)drand48();
+    hy[i] = (float)drand48();
   }
   CHECK(cudaMemcpyAsync(x, hx, N * sizeof(float), cudaMemcpyHostToDevice,
                         cudaStreamPerThread));
@@ -31,19 +33,19 @@ static int run(void) {
                         cudaStreamPerThread));
 
   // Run kernel on 1M elements on the GPU
-  add<<<1, 1, 0, cudaStreamPerThread>>>(N, x, y);
+  kernel_add<<<1, 1, 0, cudaStreamPerThread>>>(N, x, y);
 
-  CHECK(cudaMemcpyAsync(hy, y, N * sizeof(float), cudaMemcpyDeviceToHost,
+  CHECK(cudaMemcpyAsync(hsum, y, N * sizeof(float), cudaMemcpyDeviceToHost,
                         cudaStreamPerThread));
 
   // Wait for GPU to finish before accessing on host
   CHECK(cudaStreamSynchronize(cudaStreamPerThread));
 
-  // Check for errors (all values should be 3.0f)
+  // Check for errors
   for (size_t i = 0; i < N; i++) {
-    maxError = fmaxf(maxError, fabs(hy[i] - 3.0f));
+    maxerror = fmaxf(maxerror, fabsf(hx[i] + hy[i] - hsum[i]));
   }
-  std::cout << "Max difference: " << maxError << '\n';
+  std::cout << "Max difference: " << maxerror << '\n';
 
   // Free memory
   gpuFree(x);
@@ -56,6 +58,7 @@ static int run(void) {
 
 int main(void) {
   try {
+    srand48(time(NULL));
     CHECK(cudaSetDevice(0));
     run();
   } catch (const std::exception& ex) {

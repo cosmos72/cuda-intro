@@ -6,10 +6,10 @@
 #include "alloc.h"
 #include "check.h"
 
-#define BLOCK_SIZE 512
+#define BLOCK_SIZE 512  // number of threads per block
 
-static float host_sum(unsigned n, const float* hin) {
-  float ret = 0.0f;
+static double host_sum(unsigned n, const float* hin) {
+  double ret = 0.0f;
   for (unsigned i = 0; i < n; i++) {
     ret += hin[i];
   }
@@ -22,19 +22,14 @@ __global__ void kernel_sum(const float* in, float* buf, unsigned n) {
   extern __shared__ float sdata[];
 
   unsigned tid = threadIdx.x;
-  unsigned i = blockIdx.x * blocksize * 2 + threadIdx.x;
-  unsigned gridsize = blocksize * 2 * gridDim.x;
-  sdata[tid] = 0;
+  unsigned i = blockIdx.x * blocksize + threadIdx.x;
+  unsigned gridsize = blocksize * gridDim.x;
 
-  while (i < n) {
-    sdata[tid] += in[i];
-
-    if (i + blocksize < n) {
-      sdata[tid] += in[i + blocksize];
-    }
-
-    i += gridsize;
+  float sum = 0.0f;
+  for (; i < n; i += gridsize) {
+    sum += in[i];
   }
+  sdata[tid] = sum;
 
   __syncthreads();
 
@@ -80,9 +75,9 @@ __global__ void kernel_sum(const float* in, float* buf, unsigned n) {
   }
 }
 
-static float cuda_sum(unsigned n, const float* in, unsigned block_n,
-                      float* hbuf, float* buf) {
-  const unsigned thread_n = BLOCK_SIZE / 2;
+static double cuda_sum(unsigned n, const float* in, unsigned block_n,
+                       float* hbuf, float* buf) {
+  const unsigned thread_n = BLOCK_SIZE;
   dim3 threads(thread_n, 1, 1);
   dim3 blocks(block_n, 1, 1);
 
@@ -116,8 +111,8 @@ static int run(void) {
   CHECK(cudaMemcpyAsync(x, hx, n * sizeof(float), cudaMemcpyHostToDevice,
                         cudaStreamPerThread));
 
-  float mean = cuda_sum(n, x, block_n, hbuf, buf) / float(n);
-  float hmean = host_sum(n, hx) / float(n);
+  double mean = cuda_sum(n, x, block_n, hbuf, buf) / double(n);
+  double hmean = host_sum(n, hx) / double(n);
 
   std::cout << "cuda mean = " << mean << ", host mean = " << hmean
             << ", difference: " << fabsf(mean - hmean) << '\n';
