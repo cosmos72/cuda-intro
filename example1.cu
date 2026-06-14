@@ -37,6 +37,8 @@ static int run(void) {
   // Run kernel on 1M elements on the GPU
   kernel_add<<<1, 1>>>(N, x, y);
 
+  CHECK(cudaGetLastError());
+
   // Wait for GPU to finish before accessing on host
   CHECK(cudaStreamSynchronize(cudaStreamPerThread));
 

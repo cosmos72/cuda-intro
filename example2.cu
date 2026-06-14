@@ -35,6 +35,8 @@ static int run(void) {
   // Run kernel on 1M elements on the GPU
   kernel_add<<<1, 1, 0, cudaStreamPerThread>>>(N, x, y);
 
+  CHECK(cudaGetLastError());
+
   CHECK(cudaMemcpyAsync(hsum, y, N * sizeof(float), cudaMemcpyDeviceToHost,
                         cudaStreamPerThread));
 

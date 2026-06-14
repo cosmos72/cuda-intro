@@ -43,6 +43,8 @@ static int run(void) {
 
   kernel_add<<<blocks, threads, 0, cudaStreamPerThread>>>(N, x, y);
 
+  CHECK(cudaGetLastError());
+
   CHECK(cudaMemcpyAsync(hsum, y, N * sizeof(float), cudaMemcpyDeviceToHost,
                         cudaStreamPerThread));
 

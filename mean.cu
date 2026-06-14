@@ -87,6 +87,8 @@ static double cuda_sum(unsigned n, const float* in, unsigned block_n,
   kernel_sum<thread_n>
       <<<blocks, threads, smemsize, cudaStreamPerThread>>>(in, buf, n);
 
+  CHECK(cudaGetLastError());
+
   CHECK(cudaMemcpyAsync(hbuf, buf, sizeof(float) * block_n,
                         cudaMemcpyDeviceToHost, cudaStreamPerThread));
 
