@@ -2,10 +2,12 @@
 #ifndef CUDA_INTRO_CHECK_H
 #define CUDA_INTRO_CHECK_H
 
+#include <cuda_runtime.h>
+
 #include <sstream>
 #include <stdexcept>
 
-static void throw_if_failed(const char file[], int line, cudaError_t err) {
+static void throw_if_cuda_failed(const char file[], int line, cudaError_t err) {
   if (err != cudaSuccess) {
     std::stringstream buf;
     buf << "CUDA error " << err << " at " << file << ':' << line << ' '
@@ -14,6 +16,6 @@ static void throw_if_failed(const char file[], int line, cudaError_t err) {
   }
 }
 
-#define CHECK(expr) throw_if_failed(__FILE__, __LINE__, expr)
+#define CHECK(expr) throw_if_cuda_failed(__FILE__, __LINE__, expr)
 
 #endif  // CUDA_INTRO_CHECK_H
