@@ -1,4 +1,4 @@
-#include <stdlib.h>
+#Include <stdlib.h>
 #include <time.h>
 
 #include <iomanip>
@@ -89,14 +89,14 @@ static int run(void) {
   // compute C = alpha * A * B + beta * C
   CHECK_BLAS(cublasSgemm(
       handle,
-      CUBLAS_OP_T,  // transpose A, because BLAS uses row-major layout
-      CUBLAS_OP_T,  // transpose B, because BLAS uses row-major layout
+      CUBLAS_OP_T,  // transpose A, because BLAS uses column-major layout
+      CUBLAS_OP_T,  // transpose B, because BLAS uses column-major layout
       n2, n3, n1,
       &alpha,   // cuda memory is supported too
       a, n1,    // A column stride, >= n1
       b, n3,    // B column stride, >= n3
       &beta,    // cuda memory is supported too
-      c, n2));  // C row stride, >= n2 (cannot transpose C)
+      c, n2));  // C column stride, >= n2 (cannot transpose C)
 
   CHECK(cudaMemcpyAsync(hc, c, n3 * n2 * sizeof(float), cudaMemcpyDeviceToHost,
                         cudaStreamPerThread));
@@ -112,6 +112,7 @@ static int run(void) {
   gpuFree(c);
   gpuFree(b);
   gpuFree(a);
+  hostFree(hmul);
   hostFree(hc);
   hostFree(hb);
   hostFree(ha);
