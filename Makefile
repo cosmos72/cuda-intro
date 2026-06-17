@@ -16,8 +16,8 @@ example3: example3.cu
 mean: mean.cu
 	nvcc -o $@ -g $< $(CUFLAGS)
 
-matmul: matmul.cu
-	nvcc -o $@ -g $< $(CUFLAGS) -lcublas
+matmul: matmul.cpp
+	c++ -o $@ -g $< -DCUDA_ARCH="$(CUDA_ARCH)" -lcublas -lcuda -lcudart
 
 clean:
 	rm -f example1 example2 example3 mean matmul
