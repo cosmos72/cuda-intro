@@ -86,7 +86,7 @@ static void host_benchmark(size_t N) {
 
   const struct timespec start = now();
 
-  size_t run_n = 20;
+  size_t run_n = 1000;
   for (size_t i = 0; i < run_n; ++i) {
     host_add(N, hx, hy);
 
