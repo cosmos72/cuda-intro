@@ -89,6 +89,11 @@ static void host_benchmark(size_t N) {
   size_t run_n = 20;
   for (size_t i = 0; i < run_n; ++i) {
     host_add(N, hx, hy);
+
+    __asm__ __volatile__(""
+                         : /* no output */
+                         : /* no input */
+                         : "memory");
   }
 
   const double elapsed = now() - start;
