@@ -9,7 +9,8 @@
 #define BLOCK_SIZE 512  // number of threads per block
 
 // Kernel function to kernel_add the elements of two arrays
-__global__ void kernel_add(size_t n, float* x, float* y) {
+__global__ void kernel_add(size_t n, const float* __restrict__ x,
+                           float* __restrict__ y) {
   size_t index = (size_t)blockIdx.x * blockDim.x + threadIdx.x;
   size_t stride = (size_t)blockDim.x * gridDim.x;
   for (size_t i = index; i < n; i += stride) {

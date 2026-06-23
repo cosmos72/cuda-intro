@@ -1,23 +1,26 @@
 CUDA_ARCH=52
 
-CUFLAGS=-arch sm_$(CUDA_ARCH) -DCUDA_ARCH="$(CUDA_ARCH)" --default-stream per-thread
+CUFLAGS=-O2 -arch sm_$(CUDA_ARCH) -DCUDA_ARCH="$(CUDA_ARCH)" --default-stream per-thread
 
-all: example1 example2 example3 mean matmul
+all: example1 example2 example3 benchmark mean matmul
 
-example1: example1.cu
+example1: example1.cu alloc.h check.h
 	nvcc -o $@ -g $< $(CUFLAGS)
 
-example2: example2.cu
+example2: example2.cu alloc.h check.h
 	nvcc -o $@ -g $< $(CUFLAGS)
 
-example3: example3.cu
+example3: example3.cu alloc.h check.h
 	nvcc -o $@ -g $< $(CUFLAGS)
 
-mean: mean.cu
+benchmark: benchmark.cu alloc.h check.h check_host.h timer.h
 	nvcc -o $@ -g $< $(CUFLAGS)
 
-matmul: matmul.cpp
+mean: mean.cu alloc.h check.h
+	nvcc -o $@ -g $< $(CUFLAGS)
+
+matmul: matmul.cpp alloc.h check.h check_blas.h
 	c++ -o $@ -g $< -DCUDA_ARCH="$(CUDA_ARCH)" -lcublas -lcuda -lcudart
 
 clean:
-	rm -f example1 example2 example3 mean matmul
+	rm -f example1 example2 example3 benchmark mean matmul

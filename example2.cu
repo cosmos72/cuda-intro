@@ -7,7 +7,8 @@
 #include "check.h"
 
 // Kernel function to add the elements of two arrays
-__global__ void kernel_add(size_t n, float* x, float* y) {
+__global__ void kernel_add(size_t n, const float* __restrict__ x,
+                           float* __restrict__ y) {
   for (size_t i = 0; i < n; i++) {
     y[i] += x[i];
   }
