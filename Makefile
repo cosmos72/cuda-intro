@@ -38,4 +38,4 @@ matmul: matmul.cpp alloc.h check_cuda.h check_cublas.h
 	c++ -o $@ $< $(CXXFLAGS) -lcublas -lcuda -lcudart
 
 clean:
-	rm -f add1 add2 add3 add mean matmul
+	rm -f add1 add2 add3 add mean matmul *.o
