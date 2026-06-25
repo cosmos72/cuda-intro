@@ -110,7 +110,7 @@ int main(void) {
     srand48(time(NULL));
     CHECK(cudaSetDevice(0));
     std::cout << "# host\n";
-    for (size_t N = 16; N <= 1048576 * 4; N <<= 1) {
+    for (size_t N = 16; N <= 1048576 * 64; N <<= 1) {
       host_benchmark(N);
     }
     std::cout << "\n# kernel\n";
