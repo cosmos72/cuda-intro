@@ -5,7 +5,7 @@
 #include <iostream>
 
 #include "alloc.h"
-#include "check_blas.h"
+#include "check_cublas.h"
 
 /**
  *     / --- n1 --- \       / --- n3 --- \       / --- n3 --- \
@@ -46,12 +46,12 @@ static cublasHandle_t initBlas(void) {
   // warning: using the same handle from multiple threads
   // may cause race conditions - see docs
   cublasHandle_t handle = NULL;
-  CHECK_BLAS(cublasCreate(&handle));
+  CHECK_CUBLAS(cublasCreate(&handle));
   return handle;
 }
 
 static void quitBlas(cublasHandle_t handle) {  //
-  CHECK_BLAS(cublasDestroy(handle));
+  CHECK_CUBLAS(cublasDestroy(handle));
 }
 
 static int run(void) {
@@ -75,19 +75,19 @@ static int run(void) {
   for (int i = 0; i < n3 * n1; i++) {
     hb[i] = (float)drand48();
   }
-  CHECK(cudaMemcpyAsync(a, ha, n1 * n2 * sizeof(float), cudaMemcpyHostToDevice,
-                        cudaStreamPerThread));
-  CHECK(cudaMemcpyAsync(b, hb, n3 * n1 * sizeof(float), cudaMemcpyHostToDevice,
-                        cudaStreamPerThread));
-  CHECK(cudaMemsetAsync(c, 0, n3 * n2, cudaStreamPerThread));
+  CHECK_CUDA(cudaMemcpyAsync(a, ha, n1 * n2 * sizeof(float),
+                             cudaMemcpyHostToDevice, cudaStreamPerThread));
+  CHECK_CUDA(cudaMemcpyAsync(b, hb, n3 * n1 * sizeof(float),
+                             cudaMemcpyHostToDevice, cudaStreamPerThread));
+  CHECK_CUDA(cudaMemsetAsync(c, 0, n3 * n2, cudaStreamPerThread));
 
-  CHECK_BLAS(cublasSetStream(handle, cudaStreamPerThread));
+  CHECK_CUBLAS(cublasSetStream(handle, cudaStreamPerThread));
 
   float alpha = 1.0f;
   float beta = 0.0f;
 
   // compute C = alpha * A * B + beta * C
-  CHECK_BLAS(cublasSgemm(
+  CHECK_CUBLAS(cublasSgemm(
       handle,
       CUBLAS_OP_T,  // transpose A, because BLAS uses column-major layout
       CUBLAS_OP_T,  // transpose B, because BLAS uses column-major layout
@@ -98,11 +98,11 @@ static int run(void) {
       &beta,    // cuda memory is supported too
       c, n2));  // C column stride, >= n2 (cannot transpose C)
 
-  CHECK(cudaMemcpyAsync(hc, c, n3 * n2 * sizeof(float), cudaMemcpyDeviceToHost,
-                        cudaStreamPerThread));
+  CHECK_CUDA(cudaMemcpyAsync(hc, c, n3 * n2 * sizeof(float),
+                             cudaMemcpyDeviceToHost, cudaStreamPerThread));
 
   // Wait for GPU to finish before accessing on host
-  CHECK(cudaStreamSynchronize(cudaStreamPerThread));
+  CHECK_CUDA(cudaStreamSynchronize(cudaStreamPerThread));
 
   host_matmul(n1, n2, n3, alpha, ha, hb, hmul);
 
@@ -126,7 +126,7 @@ int main(void) {
   try {
     srand48(time(NULL));  // initialize random generator
 
-    CHECK(cudaSetDevice(0));
+    CHECK_CUDA(cudaSetDevice(0));
     run();
   } catch (const std::exception& ex) {
     std::cerr << ex.what() << '\n';

@@ -1,26 +1,41 @@
 CUDA_ARCH=52
 
-CUFLAGS=-O2 -arch sm_$(CUDA_ARCH) -DCUDA_ARCH="$(CUDA_ARCH)" --default-stream per-thread
+CXXFLAGS=-g -O2 -DCUDA_ARCH=$(CUDA_ARCH)
 
-all: example1 example2 example3 benchmark mean matmul
+CUFLAGS=$(CXXFLAGS) -arch sm_$(CUDA_ARCH) --default-stream per-thread
 
-example1: example1.cu alloc.h check.h
-	nvcc -o $@ -g $< $(CUFLAGS)
+all: add1 add2 add3 add mean matmul
 
-example2: example2.cu alloc.h check.h
-	nvcc -o $@ -g $< $(CUFLAGS)
+add1: add1.cu alloc.h check_cuda.h
+	nvcc -o $@ $< $(CUFLAGS)
 
-example3: example3.cu alloc.h check.h
-	nvcc -o $@ -g $< $(CUFLAGS)
+add2: add2.cu alloc.h check_cuda.h
+	nvcc -o $@ $< $(CUFLAGS)
 
-benchmark: benchmark.cu alloc.h check.h check_host.h timer.h
-	nvcc -o $@ -g $< $(CUFLAGS)
+add3: add3.cu alloc.h check_cuda.h
+	nvcc -o $@ $< $(CUFLAGS)
 
-mean: mean.cu alloc.h check.h
-	nvcc -o $@ -g $< $(CUFLAGS)
+###############################################################
 
-matmul: matmul.cpp alloc.h check.h check_blas.h
-	c++ -o $@ -g $< -DCUDA_ARCH="$(CUDA_ARCH)" -lcublas -lcuda -lcudart
+add_cuda.o: add_cuda.cu alloc.h check_cuda.h timer.h
+	nvcc -o $@ -c $< $(CUFLAGS)
+
+add_host.o: add_host.cpp alloc.h check_host.h timer.h
+	c++ -o $@ -c $< $(CXXFLAGS) -std=c++20
+
+add.o: add.cpp check_cuda.h
+	c++ -o $@ -c $< $(CXXFLAGS)
+
+add: add_cuda.o add_host.o add.o
+	c++ -o $@ $^ $(CXXFLAGS) -lcuda -lcudart
+
+###############################################################
+
+mean: mean.cu alloc.h check_cuda.h
+	nvcc -o $@ $< $(CUFLAGS)
+
+matmul: matmul.cpp alloc.h check_cuda.h check_cublas.h
+	c++ -o $@ $< $(CXXFLAGS) -lcublas -lcuda -lcudart
 
 clean:
-	rm -f example1 example2 example3 benchmark mean matmul
+	rm -f add1 add2 add3 add mean matmul

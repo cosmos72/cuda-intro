@@ -11,7 +11,7 @@ static struct timespec now(void) {
   return ts;
 }
 
-double operator-(struct timespec left, struct timespec right) {
+static double operator-(struct timespec left, struct timespec right) {
   return (left.tv_sec - right.tv_sec) +
          (int(left.tv_nsec) - int(right.tv_nsec)) / 1e9;
 }

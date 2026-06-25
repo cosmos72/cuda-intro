@@ -1,6 +1,6 @@
 
-#ifndef CUDA_INTRO_CHECK_BLAS_H
-#define CUDA_INTRO_CHECK_BLAS_H
+#ifndef CUDA_INTRO_CHECK_CUBLAS_H
+#define CUDA_INTRO_CHECK_CUBLAS_H
 
 #include <cublas_v2.h>
 
@@ -17,6 +17,6 @@ static void throw_if_cublas_failed(const char file[], int line,
   }
 }
 
-#define CHECK_BLAS(expr) throw_if_cublas_failed(__FILE__, __LINE__, expr)
+#define CHECK_CUBLAS(expr) throw_if_cublas_failed(__FILE__, __LINE__, expr)
 
-#endif  // CUDA_INTRO_CHECK_BLAS_H
+#endif  // CUDA_INTRO_CHECK_CUBLAS_H

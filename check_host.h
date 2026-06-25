@@ -3,6 +3,7 @@
 #define CUDA_INTRO_CHECK_HOST_H
 
 #include <cuda_runtime.h>
+#include <string.h>  // strerror()
 
 #include <sstream>
 #include <stdexcept>

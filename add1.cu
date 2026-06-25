@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-#include "check.h"
+#include "check_cuda.h"
 
 // Kernel function to add the elements of two arrays.
 //
@@ -11,39 +11,39 @@
 // prefer integers, float or even bfloat16.
 //
 // NOTE: bfloat16 requires CUDA_ARCH >= sm_80
-__global__ void kernel_add(int n, float* x, float* y) {
-  for (int i = 0; i < n; i++) {
-    y[i] = x[i] + y[i];
+__global__ void kernel_add(int size, float* x, float* y) {
+  for (int i = 0; i < size; i++) {
+    y[i] += x[i];
   }
 }
 
 static int run(void) {
-  int N = 1 << 20;
+  int size = 1 << 20;
   float *x = NULL, *y = NULL, *sum = NULL;
   float maxerror = 0.0f;
 
   // Allocate Unified Memory – accessible from CPU or GPU
-  CHECK(cudaMallocManaged(&x, N * sizeof(float)));
-  CHECK(cudaMallocManaged(&y, N * sizeof(float)));
-  CHECK(cudaMallocManaged(&sum, N * sizeof(float)));
+  CHECK_CUDA(cudaMallocManaged(&x, size * sizeof(float)));
+  CHECK_CUDA(cudaMallocManaged(&y, size * sizeof(float)));
+  CHECK_CUDA(cudaMallocManaged(&sum, size * sizeof(float)));
 
   // initialize x and y arrays on the host
-  for (int i = 0; i < N; i++) {
+  for (int i = 0; i < size; i++) {
     x[i] = (float)drand48();
     y[i] = (float)drand48();
     sum[i] = x[i] + y[i];
   }
 
   // Run kernel on 1M elements on the GPU
-  kernel_add<<<1, 1>>>(N, x, y);
+  kernel_add<<<1, 1>>>(size, x, y);
 
-  CHECK(cudaGetLastError());
+  CHECK_CUDA(cudaGetLastError());
 
   // Wait for GPU to finish before accessing on host
-  CHECK(cudaStreamSynchronize(cudaStreamPerThread));
+  CHECK_CUDA(cudaStreamSynchronize(cudaStreamPerThread));
 
   // Check for errors
-  for (int i = 0; i < N; i++) {
+  for (int i = 0; i < size; i++) {
     maxerror = fmaxf(maxerror, fabs(sum[i] - y[i]));
   }
   std::cout << "Max difference: " << maxerror << std::endl;
@@ -56,7 +56,7 @@ static int run(void) {
 
 int main(void) {
   try {
-    CHECK(cudaSetDevice(0));
+    CHECK_CUDA(cudaSetDevice(0));
     run();
   } catch (const std::exception& ex) {
     std::cerr << ex.what() << '\n';

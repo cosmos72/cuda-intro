@@ -5,7 +5,7 @@
 #include <iostream>
 
 #include "alloc.h"
-#include "check.h"
+#include "check_cuda.h"
 
 #define BLOCK_SIZE 512  // number of threads per block
 
@@ -87,13 +87,13 @@ static double cuda_sum(unsigned n, const float* in, unsigned block_n,
   kernel_sum<thread_n>
       <<<blocks, threads, smemsize, cudaStreamPerThread>>>(in, buf, n);
 
-  CHECK(cudaGetLastError());
+  CHECK_CUDA(cudaGetLastError());
 
-  CHECK(cudaMemcpyAsync(hbuf, buf, sizeof(float) * block_n,
-                        cudaMemcpyDeviceToHost, cudaStreamPerThread));
+  CHECK_CUDA(cudaMemcpyAsync(hbuf, buf, sizeof(float) * block_n,
+                             cudaMemcpyDeviceToHost, cudaStreamPerThread));
 
   // Wait for GPU to finish before accessing on host
-  CHECK(cudaStreamSynchronize(cudaStreamPerThread));
+  CHECK_CUDA(cudaStreamSynchronize(cudaStreamPerThread));
 
   return host_sum(block_n, hbuf);
 }
@@ -111,8 +111,8 @@ static int run(void) {
   for (unsigned i = 0; i < n; i++) {
     hx[i] = (float)drand48();
   }
-  CHECK(cudaMemcpyAsync(x, hx, n * sizeof(float), cudaMemcpyHostToDevice,
-                        cudaStreamPerThread));
+  CHECK_CUDA(cudaMemcpyAsync(x, hx, n * sizeof(float), cudaMemcpyHostToDevice,
+                             cudaStreamPerThread));
 
   double mean = cuda_sum(n, x, block_n, hbuf, buf) / double(n);
   double hmean = host_sum(n, hx) / double(n);
@@ -133,7 +133,7 @@ int main(void) {
   try {
     srand48(time(NULL));  // initialize random generator
 
-    CHECK(cudaSetDevice(0));
+    CHECK_CUDA(cudaSetDevice(0));
     run();
   } catch (const std::exception& ex) {
     std::cerr << ex.what() << '\n';

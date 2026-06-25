@@ -1,6 +1,6 @@
 
-#ifndef CUDA_INTRO_CHECK_H
-#define CUDA_INTRO_CHECK_H
+#ifndef CUDA_INTRO_CHECK_CUDA_H
+#define CUDA_INTRO_CHECK_CUDA_H
 
 #include <cuda_runtime.h>
 
@@ -16,6 +16,6 @@ static void throw_if_cuda_failed(const char file[], int line, cudaError_t err) {
   }
 }
 
-#define CHECK(expr) throw_if_cuda_failed(__FILE__, __LINE__, expr)
+#define CHECK_CUDA(expr) throw_if_cuda_failed(__FILE__, __LINE__, expr)
 
-#endif  // CUDA_INTRO_CHECK_H
+#endif  // CUDA_INTRO_CHECK_CUDA_H
