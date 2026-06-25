@@ -42,7 +42,7 @@ static void compare_matrix(int n2, int n3, const float* c /*n3*n2*/,
             << "max difference: " << delta << '\n';
 }
 
-static cublasHandle_t initBlas(void) {
+static cublasHandle_t init_cublas(void) {
   // warning: using the same handle from multiple threads
   // may cause race conditions - see docs
   cublasHandle_t handle = NULL;
@@ -55,7 +55,7 @@ static void quitBlas(cublasHandle_t handle) {  //
 }
 
 static int run(void) {
-  cublasHandle_t handle = initBlas();
+  cublasHandle_t handle = init_cublas();
 
   int n1 = 100, n2 = 30, n3 = 50;
   float* ha = hostAllocFloat(n1 * n2);
