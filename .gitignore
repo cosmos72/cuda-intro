@@ -3,3 +3,6 @@ add?
 mean
 matmul
 *.o
+bench_cuda.txt
+bench_host?.txt
+bench_host??.txt

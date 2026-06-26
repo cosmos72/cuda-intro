@@ -1,6 +1,11 @@
 #include <stdlib.h>
 #include <time.h>
 
+#define USE_CBLAS
+#ifdef USE_CBLAS
+#include <cblas-netlib.h>
+#endif
+
 #include <iomanip>
 #include <iostream>
 
@@ -31,7 +36,7 @@ static void host_matmul(int n1, int n2, int n3, float alpha,
 }
 
 static void compare_matrix(int n2, int n3, const float* c /*n3*n2*/,
-                           const float* tc /*n2*n3*/) {
+                           const float* tc /*n2*n3*/, const char* label) {
   float delta = 0.0f;
   for (int k = 0; k < n3; k++) {
     for (int j = 0; j < n2; j++) {
@@ -39,7 +44,7 @@ static void compare_matrix(int n2, int n3, const float* c /*n3*n2*/,
     }
   }
   std::cout << std::setprecision(7) /**/
-            << "max difference: " << delta << '\n';
+            << label << " max difference: " << delta << '\n';
 }
 
 static cublasHandle_t init_cublas(void) {
@@ -61,7 +66,8 @@ static int run(void) {
   float* ha = hostAllocFloat(n1 * n2);
   float* hb = hostAllocFloat(n3 * n1);
   float* hc = hostAllocFloat(n3 * n2);
-  float* hmul = hostAllocFloat(n3 * n2);
+  float* hc_blas = hostAllocFloat(n3 * n2);
+  float* hc_cuda = hostAllocFloat(n3 * n2);
 
   float* a = gpuAllocFloat(n1 * n2);
   float* b = gpuAllocFloat(n3 * n1);
@@ -89,8 +95,8 @@ static int run(void) {
   // compute C = alpha * A * B + beta * C
   CHECK_CUBLAS(cublasSgemm(
       handle,
-      CUBLAS_OP_T,  // transpose A, because BLAS uses column-major layout
-      CUBLAS_OP_T,  // transpose B, because BLAS uses column-major layout
+      CUBLAS_OP_T,  // transpose A, because CUBLAS uses column-major layout
+      CUBLAS_OP_T,  // transpose B, because CUBLAS uses column-major layout
       n2, n3, n1,
       &alpha,   // cuda memory is supported too
       a, n1,    // A column stride, >= n1
@@ -98,21 +104,34 @@ static int run(void) {
       &beta,    // cuda memory is supported too
       c, n2));  // C column stride, >= n2 (cannot transpose C)
 
-  CHECK_CUDA(cudaMemcpyAsync(hc, c, n3 * n2 * sizeof(float),
+  CHECK_CUDA(cudaMemcpyAsync(hc_cuda, c, n3 * n2 * sizeof(float),
                              cudaMemcpyDeviceToHost, cudaStreamPerThread));
 
   // Wait for GPU to finish before accessing on host
   CHECK_CUDA(cudaStreamSynchronize(cudaStreamPerThread));
 
-  host_matmul(n1, n2, n3, alpha, ha, hb, hmul);
+  host_matmul(n1, n2, n3, alpha, ha, hb, hc);
 
-  compare_matrix(n2, n3, hmul, hc);
+  compare_matrix(n2, n3, hc, hc_cuda, "cuda");
+
+#ifdef USE_CBLAS
+  cblas_sgemm(CblasColMajor,              // column-major as CUBLAS
+              CblasTrans,                 // transpose A
+              CblasTrans,                 // transpose B
+              n2, n3, n1, alpha, ha, n1,  // A column stride, >= n1
+              hb, n3,                     // B column stride, >= n3
+              beta, hc_blas,
+              n2);  // C column stride, >= n2 (cannot transpose C)
+
+  compare_matrix(n2, n3, hc, hc_blas, "blas");
+#endif
 
   // Free memory
   gpuFree(c);
   gpuFree(b);
   gpuFree(a);
-  hostFree(hmul);
+  hostFree(hc_cuda);
+  hostFree(hc_blas);
   hostFree(hc);
   hostFree(hb);
   hostFree(ha);

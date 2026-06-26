@@ -6,6 +6,11 @@ CUFLAGS=$(CXXFLAGS) -arch sm_$(CUDA_ARCH) --default-stream per-thread
 
 all: add1 add2 add3 add mean matmul
 
+clean:
+	rm -f add1 add2 add3 add mean matmul *.o
+
+###############################################################
+
 add1: add1.cu alloc.h check_cuda.h
 	nvcc -o $@ $< $(CUFLAGS)
 
@@ -14,6 +19,12 @@ add2: add2.cu alloc.h check_cuda.h
 
 add3: add3.cu alloc.h check_cuda.h
 	nvcc -o $@ $< $(CUFLAGS)
+
+mean: mean.cu alloc.h check_cuda.h
+	nvcc -o $@ $< $(CUFLAGS)
+
+matmul: matmul.cpp alloc.h check_cuda.h check_cublas.h
+	c++ -o $@ $< $(CXXFLAGS) -lblas -lcublas -lcuda -lcudart
 
 ###############################################################
 
@@ -31,11 +42,3 @@ add: add_cuda.o add_host.o add.o
 
 ###############################################################
 
-mean: mean.cu alloc.h check_cuda.h
-	nvcc -o $@ $< $(CUFLAGS)
-
-matmul: matmul.cpp alloc.h check_cuda.h check_cublas.h
-	c++ -o $@ $< $(CXXFLAGS) -lcublas -lcuda -lcudart
-
-clean:
-	rm -f add1 add2 add3 add mean matmul *.o
