@@ -23,7 +23,7 @@ add3: add3.cu alloc.h check_cuda.h
 mean: mean.cu alloc.h check_cuda.h
 	nvcc -o $@ $< $(CUFLAGS)
 
-matmul: matmul.cpp alloc.h check_cuda.h check_cublas.h
+matmul: matmul.cpp
 	c++ -o $@ $< $(CXXFLAGS) -lblas -lcublas -lcuda -lcudart
 
 ###############################################################

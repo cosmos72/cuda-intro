@@ -53,9 +53,9 @@ int main(void) {
     srand48(time(NULL));
     CHECK_CUDA(cudaSetDevice(0));
 
+    run_cuda_add_benchmark();
     run_host_add_benchmark();
     run_host_add_benchmark_multithread();
-    run_cuda_add_benchmark();
 
   } catch (const std::exception& ex) {
     std::cerr << ex.what() << '\n';

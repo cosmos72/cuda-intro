@@ -11,37 +11,82 @@
 
 #include "alloc.h"
 #include "check_cublas.h"
+#include "timer.h"
 
 /**
- *     / --- n1 --- \       / --- n3 --- \       / --- n3 --- \
- *     |            |       |            |       |            |
- * A = n2           |   B = n1           |   C = n2           |
- *     |            |       |            |       |            |
- *     \            /       \            /       \            /
+ *     / --- n --- \       / --- n --- \       / --- n --- \
+ *     |           |       |           |       |           |
+ * A = n           |   B = n           |   C = n           |
+ *     |           |       |           |       |           |
+ *     \           /       \           /       \           /
  */
 
-/* compute c = alpha * a * b */
-static void host_matmul(int n1, int n2, int n3, float alpha,
-                        const float* a /*n1*n2*/, const float* b /*n3*n1*/,
-                        float* c /*n3*n2*/) {
-  for (int k = 0; k < n3; k++) {
-    for (int j = 0; j < n2; j++) {
+/* compute C = A * B manually */
+static double host_matmul(int n, const float* ha /*n*n*/,
+                          const float* hb /*n*n*/, float* hc /*n*n*/) {
+  const struct timespec start = now();
+  for (int k = 0; k < n; k++) {
+    for (int j = 0; j < n; j++) {
       float sum = 0.0f;
-      for (int i = 0; i < n1; i++) {
-        sum += a[i + j * n1] * b[k + i * n3];
+      for (int i = 0; i < n; i++) {
+        sum += ha[i * n + j] * hb[i + k * n];
       }
-      c[k + j * n3] = sum * alpha;
+      hc[j + k * n] = sum;
     }
   }
+  const double elapsed = now() - start;
+  return n * n * n / elapsed;
 }
 
-static void compare_matrix(int n2, int n3, const float* c /*n3*n2*/,
-                           const float* tc /*n2*n3*/, const char* label) {
+#ifdef USE_CBLAS
+/* compute C = A * B using BLAS library */
+static double blas_matmul(int n, const float* ha /*n*n*/,
+                          const float* hb /*n*n*/, float* hc /*n*n*/) {
+  const struct timespec start = now();
+  float alpha = 1.0f;
+  float beta = 0.0f;
+  cblas_sgemm(CblasColMajor,   // column-major as CUBLAS does
+              CblasNoTrans,    // don't transpose A
+              CblasNoTrans,    // don't transpose B
+              n, n, n, alpha,  //
+              ha, n,           // A column stride, >= n
+              hb, n,           // B column stride, >= n
+              beta,            //
+              hc,              //
+              n);              // C column stride, >= n (cannot transpose C)
+  const double elapsed = now() - start;
+  return n * n * n / elapsed;
+}
+#endif
+
+/* compute C = A * B using CUBLAS */
+static double cuda_matmul(cublasHandle_t handle, int n, const float* a /*n*n*/,
+                          const float* b /*n*n*/, float* c /*n*n*/) {
+  const struct timespec start = now();
+  float alpha = 1.0f;
+  float beta = 0.0f;
+  CHECK_CUBLAS(cublasSgemm(handle,
+                           CUBLAS_OP_N,  // don't transpose A
+                           CUBLAS_OP_N,  // don't transpose B
+                           n, n, n,
+                           &alpha,  // cuda memory is supported too
+                           a, n,    // A column stride, >= n
+                           b, n,    // B column stride, >= n
+                           &beta,   // cuda memory is supported too
+                           c,       //
+                           n));  // C column stride, >= n (cannot transpose C)
+
+  // wait for GPU to finish before stopping timer
+  CHECK_CUDA(cudaStreamSynchronize(cudaStreamPerThread));
+  const double elapsed = now() - start;
+  return n * n * n / elapsed;
+}
+
+static void compare_matrix(int n, const float* c1 /*n*n*/,
+                           const float* c2 /*n*n*/, const char* label) {
   float delta = 0.0f;
-  for (int k = 0; k < n3; k++) {
-    for (int j = 0; j < n2; j++) {
-      delta = fmaxf(delta, fabsf(c[k + j * n3] - tc[k * n2 + j]));
-    }
+  for (int i = 0; i < n * n; i++) {
+    delta = fmaxf(delta, fabsf(c1[i] - c2[i]));
   }
   std::cout << std::setprecision(7) /**/
             << label << " max difference: " << delta << '\n';
@@ -62,70 +107,69 @@ static void quitBlas(cublasHandle_t handle) {  //
 static int run(void) {
   cublasHandle_t handle = init_cublas();
 
-  int n1 = 100, n2 = 30, n3 = 50;
-  float* ha = hostAllocFloat(n1 * n2);
-  float* hb = hostAllocFloat(n3 * n1);
-  float* hc = hostAllocFloat(n3 * n2);
-  float* hc_blas = hostAllocFloat(n3 * n2);
-  float* hc_cuda = hostAllocFloat(n3 * n2);
+  int maxn = 1024;
 
-  float* a = gpuAllocFloat(n1 * n2);
-  float* b = gpuAllocFloat(n3 * n1);
-  float* c = gpuAllocFloat(n3 * n2);
+  float* ha = hostAllocFloat(maxn * maxn);
+  float* hb = hostAllocFloat(maxn * maxn);
+  float* hc = hostAllocFloat(maxn * maxn);
+  float* hc_blas = hostAllocFloat(maxn * maxn);
+  float* hc_cuda = hostAllocFloat(maxn * maxn);
 
-  // initialize ha matrix on the host
-  for (int i = 0; i < n1 * n2; i++) {
+  float* a = gpuAllocFloat(maxn * maxn);
+  float* b = gpuAllocFloat(maxn * maxn);
+  float* c = gpuAllocFloat(maxn * maxn);
+
+  // initialize ha, hb matrix on the host
+  for (int i = 0; i < maxn * maxn; i++) {
     ha[i] = (float)drand48();
-  }
-  // initialize hb matrix on the host
-  for (int i = 0; i < n3 * n1; i++) {
     hb[i] = (float)drand48();
   }
-  CHECK_CUDA(cudaMemcpyAsync(a, ha, n1 * n2 * sizeof(float),
+  int n = 400;
+  CHECK_CUDA(cudaMemcpyAsync(a, ha, n * n * sizeof(float),
                              cudaMemcpyHostToDevice, cudaStreamPerThread));
-  CHECK_CUDA(cudaMemcpyAsync(b, hb, n3 * n1 * sizeof(float),
+  CHECK_CUDA(cudaMemcpyAsync(b, hb, n * n * sizeof(float),
                              cudaMemcpyHostToDevice, cudaStreamPerThread));
-  CHECK_CUDA(cudaMemsetAsync(c, 0, n3 * n2, cudaStreamPerThread));
+  CHECK_CUDA(cudaMemsetAsync(c, 0, n * n, cudaStreamPerThread));
 
   CHECK_CUBLAS(cublasSetStream(handle, cudaStreamPerThread));
 
-  float alpha = 1.0f;
-  float beta = 0.0f;
+  cuda_matmul(handle, n, a, b, c);
 
-  // compute C = alpha * A * B + beta * C
-  CHECK_CUBLAS(cublasSgemm(
-      handle,
-      CUBLAS_OP_T,  // transpose A, because CUBLAS uses column-major layout
-      CUBLAS_OP_T,  // transpose B, because CUBLAS uses column-major layout
-      n2, n3, n1,
-      &alpha,   // cuda memory is supported too
-      a, n1,    // A column stride, >= n1
-      b, n3,    // B column stride, >= n3
-      &beta,    // cuda memory is supported too
-      c, n2));  // C column stride, >= n2 (cannot transpose C)
-
-  CHECK_CUDA(cudaMemcpyAsync(hc_cuda, c, n3 * n2 * sizeof(float),
+  CHECK_CUDA(cudaMemcpyAsync(hc_cuda, c, n * n * sizeof(float),
                              cudaMemcpyDeviceToHost, cudaStreamPerThread));
 
   // Wait for GPU to finish before accessing on host
   CHECK_CUDA(cudaStreamSynchronize(cudaStreamPerThread));
 
-  host_matmul(n1, n2, n3, alpha, ha, hb, hc);
+  host_matmul(n, ha, hb, hc);
 
-  compare_matrix(n2, n3, hc, hc_cuda, "cuda");
+  compare_matrix(n, hc, hc_cuda, "cuda");
 
 #ifdef USE_CBLAS
-  cblas_sgemm(CblasColMajor,              // column-major as CUBLAS
-              CblasTrans,                 // transpose A
-              CblasTrans,                 // transpose B
-              n2, n3, n1, alpha, ha, n1,  // A column stride, >= n1
-              hb, n3,                     // B column stride, >= n3
-              beta, hc_blas,
-              n2);  // C column stride, >= n2 (cannot transpose C)
+  blas_matmul(n, ha, hb, hc_blas);
 
-  compare_matrix(n2, n3, hc, hc_blas, "blas");
+  compare_matrix(n, hc, hc_blas, "blas");
 #endif
 
+  std::cout << "\n# cuda\n";
+  for (n = 16; n <= maxn; n <<= 1) {
+    double speed = cuda_matmul(handle, n, a, b, c);
+    std::cout << (n * n * n) << '\t' << speed << '\n';
+  }
+
+#ifdef USE_CBLAS
+  std::cout << "\n# blas\n";
+  for (n = 16; n <= maxn; n <<= 1) {
+    double speed = blas_matmul(n, ha, hb, hc_blas);
+    std::cout << (n * n * n) << '\t' << speed << '\n';
+  }
+#endif
+
+  std::cout << "\n# host\n";
+  for (n = 16; n <= maxn; n <<= 1) {
+    double speed = host_matmul(n, ha, hb, hc);
+    std::cout << (n * n * n) << '\t' << speed << '\n';
+  }
   // Free memory
   gpuFree(c);
   gpuFree(b);
