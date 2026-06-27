@@ -134,7 +134,7 @@ static int run(void) {
 
   CHECK_CUBLAS(cublasSetStream(handle, cudaStreamPerThread));
 
-  cuda_matmul(handle, maxn, a, b, c);
+  cuda_matmul(handle, n, a, b, c);
 
   CHECK_CUDA(cudaMemcpyAsync(hc_cuda, c, n * n * sizeof(float),
                              cudaMemcpyDeviceToHost, cudaStreamPerThread));
@@ -151,6 +151,9 @@ static int run(void) {
 
   compare_matrix(n, hc, hc_blas, "blas");
 #endif
+
+  /* warm-up */
+  cuda_matmul(handle, maxn, a, b, c);
 
   std::cout << "\n# cuda\n";
   for (n = 16; n <= maxn; n <<= 1) {
