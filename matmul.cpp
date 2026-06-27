@@ -22,13 +22,13 @@
  */
 
 /* compute C = A * B manually */
-static double host_matmul(int n, const float* ha /*n*n*/,
+static double host_matmul(size_t n, const float* ha /*n*n*/,
                           const float* hb /*n*n*/, float* hc /*n*n*/) {
   const struct timespec start = now();
-  for (int k = 0; k < n; k++) {
-    for (int j = 0; j < n; j++) {
+  for (size_t k = 0; k < n; k++) {
+    for (size_t j = 0; j < n; j++) {
       float sum = 0.0f;
-      for (int i = 0; i < n; i++) {
+      for (size_t i = 0; i < n; i++) {
         sum += ha[i * n + j] * hb[i + k * n];
       }
       hc[j + k * n] = sum;
@@ -40,7 +40,7 @@ static double host_matmul(int n, const float* ha /*n*n*/,
 
 #ifdef USE_CBLAS
 /* compute C = A * B using BLAS library */
-static double blas_matmul(int n, const float* ha /*n*n*/,
+static double blas_matmul(size_t n, const float* ha /*n*n*/,
                           const float* hb /*n*n*/, float* hc /*n*n*/) {
   const struct timespec start = now();
   float alpha = 1.0f;
@@ -60,8 +60,9 @@ static double blas_matmul(int n, const float* ha /*n*n*/,
 #endif
 
 /* compute C = A * B using CUBLAS */
-static double cuda_matmul(cublasHandle_t handle, int n, const float* a /*n*n*/,
-                          const float* b /*n*n*/, float* c /*n*n*/) {
+static double cuda_matmul(cublasHandle_t handle, size_t n,
+                          const float* a /*n*n*/, const float* b /*n*n*/,
+                          float* c /*n*n*/) {
   const struct timespec start = now();
   float alpha = 1.0f;
   float beta = 0.0f;
@@ -82,10 +83,10 @@ static double cuda_matmul(cublasHandle_t handle, int n, const float* a /*n*n*/,
   return n * n * n / elapsed;
 }
 
-static void compare_matrix(int n, const float* c1 /*n*n*/,
+static void compare_matrix(size_t n, const float* c1 /*n*n*/,
                            const float* c2 /*n*n*/, const char* label) {
   float delta = 0.0f;
-  for (int i = 0; i < n * n; i++) {
+  for (size_t i = 0; i < n * n; i++) {
     delta = fmaxf(delta, fabsf(c1[i] - c2[i]));
   }
   std::cout << std::setprecision(7) /**/
@@ -107,7 +108,7 @@ static void quitBlas(cublasHandle_t handle) {  //
 static int run(void) {
   cublasHandle_t handle = init_cublas();
 
-  int maxn = 1024;
+  size_t maxn = 8192;
 
   float* ha = hostAllocFloat(maxn * maxn);
   float* hb = hostAllocFloat(maxn * maxn);
@@ -120,11 +121,11 @@ static int run(void) {
   float* c = gpuAllocFloat(maxn * maxn);
 
   // initialize ha, hb matrix on the host
-  for (int i = 0; i < maxn * maxn; i++) {
+  for (size_t i = 0; i < maxn * maxn; i++) {
     ha[i] = (float)drand48();
     hb[i] = (float)drand48();
   }
-  int n = 400;
+  size_t n = 400;
   CHECK_CUDA(cudaMemcpyAsync(a, ha, n * n * sizeof(float),
                              cudaMemcpyHostToDevice, cudaStreamPerThread));
   CHECK_CUDA(cudaMemcpyAsync(b, hb, n * n * sizeof(float),
@@ -133,7 +134,7 @@ static int run(void) {
 
   CHECK_CUBLAS(cublasSetStream(handle, cudaStreamPerThread));
 
-  cuda_matmul(handle, n, a, b, c);
+  cuda_matmul(handle, maxn, a, b, c);
 
   CHECK_CUDA(cudaMemcpyAsync(hc_cuda, c, n * n * sizeof(float),
                              cudaMemcpyDeviceToHost, cudaStreamPerThread));
@@ -159,14 +160,14 @@ static int run(void) {
 
 #ifdef USE_CBLAS
   std::cout << "\n# blas\n";
-  for (n = 16; n <= maxn; n <<= 1) {
+  for (n = 16; n <= 2048; n <<= 1) {
     double speed = blas_matmul(n, ha, hb, hc_blas);
     std::cout << (n * n * n) << '\t' << speed << '\n';
   }
 #endif
 
   std::cout << "\n# host\n";
-  for (n = 16; n <= maxn; n <<= 1) {
+  for (n = 16; n <= 1024; n <<= 1) {
     double speed = host_matmul(n, ha, hb, hc);
     std::cout << (n * n * n) << '\t' << speed << '\n';
   }
@@ -190,10 +191,9 @@ int main(void) {
     srand48(time(NULL));  // initialize random generator
 
     CHECK_CUDA(cudaSetDevice(0));
-    run();
+    return run();
   } catch (const std::exception& ex) {
     std::cerr << ex.what() << '\n';
     return 1;
   }
-  return 0;
 }
